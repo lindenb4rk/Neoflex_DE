@@ -1,0 +1,12 @@
+INSERT INTO
+	LOGS.LOGS_DS (
+		ETL_TABLE,
+		DATE_START,
+		OPERATION_STATUS
+	)
+VALUES
+	(
+		'ft_balance_f',
+		NOW()::TIME,
+		1
+	);

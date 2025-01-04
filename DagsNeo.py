@@ -50,29 +50,6 @@ def insert_data1(table_name,index_name,dates):
 #требуемая задержка в 5 сек
     sleep(5)
 
-
-
-
-def insert_data_last(table_name,index_name):
-    df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";")
- #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")
-    postgres_hook = PostgresHook("postgres-db")
-    engine = postgres_hook.get_sqlalchemy_engine()
-# для "обновления" данных, подготавливаем таблицу значений PK по которым будем удалять из нашей таблицы
-    df_temp = df[index_name]
-    temp_table_name=table_name + '_temp'
-    df_temp.to_sql(temp_table_name, engine, schema="ds", if_exists="replace", index=False)
-    index_name1 = '"' +'","'.join(index_name)+ '"'
-# удаляются данные по PK из основной таблицы, а затем удаляем и саму "временную таблицу"
-    slq_str = 'DELETE FROM ds.{0} WHERE ({1}) = ANY (select * from ds.{2})'.format(table_name,index_name1,temp_table_name)
-    postgres_hook.get_records(sql = slq_str)
-    postgres_hook.get_records(sql="DROP TABLE ds.{0}".format(temp_table_name))
-# вставляем наши значения, "обновлённые" - вставятся, не затронутые данные останутся
-    df.to_sql(table_name,engine,schema="ds",if_exists="append",index=False)
-#требуемая задержка в 5 сек
-    sleep(5)
-
-
 def insert_data(table_name,index_name,dates):
     df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";",parse_dates = dates)
  #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")

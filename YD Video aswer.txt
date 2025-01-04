@@ -1,1 +1,4 @@
+Общий обзор логики Дага
 https://disk.yandex.ru/i/FE18gzNp3KykCQ
+Разбор кода вставки данных:
+https://disk.yandex.ru/i/PNRWH4Zf_SsDTQ

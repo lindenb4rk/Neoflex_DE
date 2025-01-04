@@ -31,7 +31,6 @@ def insert_data2(table_name,dates):
 
 def insert_data(table_name, pk_name, dates):
     # данное условие нужно для таблицы md_currency_d, тк там с данными есть ошибка кодировки
-    # разница только в методе pandas.read_csv(,,encoding='cp1252')
     if table_name == "md_currency_d" :
         df = pandas.read_csv(PATH + f"{table_name}.csv", delimiter=";", dtype={"CURRENCY_CODE": "Int64"},encoding='cp1252', parse_dates=dates)
     else:
@@ -43,9 +42,12 @@ def insert_data(table_name, pk_name, dates):
     df_temp = df[pk_name]
     temp_table_name=table_name + '_temp'
     df_temp.to_sql(temp_table_name, engine, schema="ds", if_exists="replace", index=False)
-    index_name1 = '"' +'","'.join(pk_name) + '"'
+    if len(pk_name) >=2:
+        pk_name1 = '"' +'","'.join(pk_name) + '"'
+    else:
+        pk_name1 = '"' +''.join(pk_name) + '"'
 # удаляются данные по PK из основной таблицы, а затем удаляем и саму "временную таблицу"
-    slq_str = 'DELETE FROM ds.{0} WHERE ({1}) = ANY (select * from ds.{2})'.format(table_name,index_name1,temp_table_name)
+    slq_str = 'DELETE FROM ds.{0} WHERE ({1}) = ANY (select * from ds.{2})'.format(table_name,pk_name1,temp_table_name)
     postgres_hook.get_records(sql = slq_str)
     postgres_hook.get_records(sql="DROP TABLE ds.{0}".format(temp_table_name))
 # вставляем наши значения, "обновлённые" - вставятся, не затронутые данные останутся

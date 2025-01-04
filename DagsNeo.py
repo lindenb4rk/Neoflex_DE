@@ -18,7 +18,7 @@ conf.set("core", "template_searchpath",PATH)
 import pandas
 from datetime import datetime
 
-# функция используется только для ft_postings_f.cvs тк там нет индекса + чистим данную таблицу по заданию
+# функция используется только для ft_postings_f.cvs тк там нет первичного ключа + чистим данную таблицу по заданию
 def insert_data2(table_name,dates):
     df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";",parse_dates = dates)
  #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")

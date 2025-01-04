@@ -1,9 +1,3 @@
-# from airflow import DAG
-# from airflow.operators.dummy_operatopr import DummyOperator
-
-
-
-
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
@@ -24,7 +18,8 @@ conf.set("core", "template_searchpath",PATH)
 import pandas
 from datetime import datetime
 
-# функция используется только для ft_postings_f.cvs тк там нет индекса
+# функция используется только для ft_postings_f.cvs тк там нет индекса + "replace" в методе to_sql, пересоздаёт таблицу
+# use in posting
 def insert_data2(table_name):
     df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";")
  #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")
@@ -37,12 +32,24 @@ def insert_data2(table_name):
 # разница только в функции pandas.read_csv(,,encoding='cp1252')
 def insert_data1(table_name,index_name):
     df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";",encoding='cp1252')
- #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";",encoding='cp1252')
+ #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")
     postgres_hook = PostgresHook("postgres-db")
     engine = postgres_hook.get_sqlalchemy_engine()
-    df.set_index(index_name)
-    df.to_sql(table_name,engine,schema="ds",if_exists="replace",index=False)
+# для "обновления" данных, подготавливаем таблицу значений PK по которым будем удалять из нашей таблицы
+    df_temp = df[index_name]
+    temp_table_name=table_name + '_temp'
+    df_temp.to_sql(temp_table_name, engine, schema="ds", if_exists="replace", index=False)
+    index_name1 = '"' +'","'.join(index_name)+ '"'
+# удаляются данные по PK из основной таблицы, а затем удаляем и саму "временную таблицу"
+    slq_str = 'DELETE FROM ds.{0} WHERE ({1}) = ANY (select * from ds.{2})'.format(table_name,index_name1,temp_table_name)
+    postgres_hook.get_records(sql = slq_str)
+    postgres_hook.get_records(sql="DROP TABLE ds.{0}".format(temp_table_name))
+# вставляем наши значения, "обновлённые" - вставятся, не затронутые данные останутся
+    df.to_sql(table_name,engine,schema="ds",if_exists="append",index=False)
+#требуемая задержка в 5 сек
     sleep(5)
+
+
 
 
 def insert_data(table_name,index_name):
@@ -50,9 +57,20 @@ def insert_data(table_name,index_name):
  #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")
     postgres_hook = PostgresHook("postgres-db")
     engine = postgres_hook.get_sqlalchemy_engine()
-    df.set_index(index_name)
-    df.to_sql(table_name,engine,schema="ds",if_exists="replace",index=False)
+# для "обновления" данных, подготавливаем таблицу значений PK по которым будем удалять из нашей таблицы
+    df_temp = df[index_name]
+    temp_table_name=table_name + '_temp'
+    df_temp.to_sql(temp_table_name, engine, schema="ds", if_exists="replace", index=False)
+    index_name1 = '"' +'","'.join(index_name)+ '"'
+# удаляются данные по PK из основной таблицы, а затем удаляем и саму "временную таблицу"
+    slq_str = 'DELETE FROM ds.{0} WHERE ({1}) = ANY (select * from ds.{2})'.format(table_name,index_name1,temp_table_name)
+    postgres_hook.get_records(sql = slq_str)
+    postgres_hook.get_records(sql="DROP TABLE ds.{0}".format(temp_table_name))
+# вставляем наши значения, "обновлённые" - вставятся, не затронутые данные останутся
+    df.to_sql(table_name,engine,schema="ds",if_exists="append",index=False)
+#требуемая задержка в 5 сек
     sleep(5)
+
 
 default_args = {
     "owner" : "mlickov",
@@ -196,12 +214,7 @@ with DAG (
     start >> sql_md_currency_d_start >> md_currency_d >> sql_md_currency_d_end >> end
     start >> sql_md_exchange_rate_d_start >> md_exchange_rate_d >> sql_md_exchange_rate_d_end >> end
     start >> sql_md_ledger_account_s_start >> md_ledger_account_s >> sql_md_ledger_account_s_end >> end
-   # >>[ft_balance_f,ft_posting_f,md_account_d,md_currency_d,md_exchange_rate_d,md_ledger_account_s]
-    # >>[[sql_ft_posting_f_start,ft_posting_f], [sql_ft_balance_f_start,ft_balance_f], [sql_md_account_d_start,md_account_d],[sql_md_currency_d_start,md_currency_d], [sql_md_exchange_rate_d_start,md_exchange_rate_d], [sql_md_ledger_account_s_start,md_ledger_account_s] ]
-# for use SQL operators
-#    >>split
-#    >>[sql_ft_balance_f,sql_ft_posting_f]
-#    >> end
+
 
 
 

@@ -29,30 +29,13 @@ def insert_data2(table_name,dates):
     df.to_sql(table_name,engine,schema="ds",if_exists="append",index=False)
     sleep(5)
 
-# ещё одна функция нужна для таблицы md_currency_d, тк там с данными есть ошибка кодировки
-# разница только в функции pandas.read_csv(,,encoding='cp1252')
-def insert_data1(table_name, pk_name, dates):
-    df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";",dtype = {"CURRENCY_CODE" : "Int64"},encoding='cp1252',parse_dates = dates)
- #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")
-    postgres_hook = PostgresHook("postgres-db")
-    engine = postgres_hook.get_sqlalchemy_engine()
-# для "обновления" данных, подготавливаем таблицу значений PK по которым будем удалять из нашей таблицы
-    df_temp = df[pk_name]
-    temp_table_name=table_name + '_temp'
-    df_temp.to_sql(temp_table_name, engine, schema="ds", if_exists="replace", index=False)
-    index_name1 = '"' +'","'.join(pk_name) + '"'
-# удаляются данные по PK из основной таблицы, а затем удаляем и саму "временную таблицу"
-    slq_str = 'DELETE FROM ds.{0} WHERE ({1}) = ANY (select * from ds.{2})'.format(table_name,index_name1,temp_table_name)
-    postgres_hook.get_records(sql = slq_str)
-    postgres_hook.get_records(sql="DROP TABLE ds.{0}".format(temp_table_name))
-# вставляем наши значения, "обновлённые" - вставятся, не затронутые данные останутся
-    df.to_sql(table_name,engine,schema="ds",if_exists="append",index=False)
-#требуемая задержка в 5 сек
-    sleep(5)
-
-
 def insert_data(table_name, pk_name, dates):
-    df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";",parse_dates = dates)
+    # данное условие нужно для таблицы md_currency_d, тк там с данными есть ошибка кодировки
+    # разница только в методе pandas.read_csv(,,encoding='cp1252')
+    if table_name == "md_currency_d" :
+        df = pandas.read_csv(PATH + f"{table_name}.csv", delimiter=";", dtype={"CURRENCY_CODE": "Int64"},encoding='cp1252', parse_dates=dates)
+    else:
+        df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";",parse_dates = dates)
  #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")
     postgres_hook = PostgresHook("postgres-db")
     engine = postgres_hook.get_sqlalchemy_engine()
@@ -109,7 +92,7 @@ with DAG (
 
     md_currency_d = PythonOperator(
         task_id="md_currency_d",
-        python_callable=insert_data1,
+        python_callable=insert_data,
         op_kwargs={"table_name": "md_currency_d","pk_name" : ["CURRENCY_RK", "DATA_ACTUAL_DATE"], "dates" : ["DATA_ACTUAL_DATE","DATA_ACTUAL_END_DATE"]}
     )
 

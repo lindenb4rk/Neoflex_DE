@@ -31,16 +31,16 @@ def insert_data2(table_name,dates):
 
 # ещё одна функция нужна для таблицы md_currency_d, тк там с данными есть ошибка кодировки
 # разница только в функции pandas.read_csv(,,encoding='cp1252')
-def insert_data1(table_name,index_name,dates):
+def insert_data1(table_name, pk_name, dates):
     df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";",dtype = {"CURRENCY_CODE" : "Int64"},encoding='cp1252',parse_dates = dates)
  #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")
     postgres_hook = PostgresHook("postgres-db")
     engine = postgres_hook.get_sqlalchemy_engine()
 # для "обновления" данных, подготавливаем таблицу значений PK по которым будем удалять из нашей таблицы
-    df_temp = df[index_name]
+    df_temp = df[pk_name]
     temp_table_name=table_name + '_temp'
     df_temp.to_sql(temp_table_name, engine, schema="ds", if_exists="replace", index=False)
-    index_name1 = '"' +'","'.join(index_name)+ '"'
+    index_name1 = '"' +'","'.join(pk_name) + '"'
 # удаляются данные по PK из основной таблицы, а затем удаляем и саму "временную таблицу"
     slq_str = 'DELETE FROM ds.{0} WHERE ({1}) = ANY (select * from ds.{2})'.format(table_name,index_name1,temp_table_name)
     postgres_hook.get_records(sql = slq_str)
@@ -50,16 +50,17 @@ def insert_data1(table_name,index_name,dates):
 #требуемая задержка в 5 сек
     sleep(5)
 
-def insert_data(table_name,index_name,dates):
+
+def insert_data(table_name, pk_name, dates):
     df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";",parse_dates = dates)
  #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")
     postgres_hook = PostgresHook("postgres-db")
     engine = postgres_hook.get_sqlalchemy_engine()
 # для "обновления" данных, подготавливаем таблицу значений PK по которым будем удалять из нашей таблицы
-    df_temp = df[index_name]
+    df_temp = df[pk_name]
     temp_table_name=table_name + '_temp'
     df_temp.to_sql(temp_table_name, engine, schema="ds", if_exists="replace", index=False)
-    index_name1 = '"' +'","'.join(index_name)+ '"'
+    index_name1 = '"' +'","'.join(pk_name) + '"'
 # удаляются данные по PK из основной таблицы, а затем удаляем и саму "временную таблицу"
     slq_str = 'DELETE FROM ds.{0} WHERE ({1}) = ANY (select * from ds.{2})'.format(table_name,index_name1,temp_table_name)
     postgres_hook.get_records(sql = slq_str)
@@ -91,7 +92,7 @@ with DAG (
     ft_balance_f = PythonOperator(
         task_id = "ft_balance_f",
         python_callable=insert_data,
-        op_kwargs={"table_name" : "ft_balance_f","index_name" : ["ON_DATE","ACCOUNT_RK"],"dates" : ["ON_DATE"]}
+        op_kwargs={"table_name" : "ft_balance_f","pk_name" : ["ON_DATE","ACCOUNT_RK"],"dates" : ["ON_DATE"]}
     )
 
     ft_posting_f = PythonOperator(
@@ -103,25 +104,25 @@ with DAG (
     md_account_d = PythonOperator(
         task_id="md_account_d",
         python_callable=insert_data,
-        op_kwargs={"table_name": "md_account_d","index_name" : ["DATA_ACTUAL_DATE", "ACCOUNT_RK"], "dates" : ["DATA_ACTUAL_DATE","DATA_ACTUAL_END_DATE"]}
+        op_kwargs={"table_name": "md_account_d","pk_name" : ["DATA_ACTUAL_DATE", "ACCOUNT_RK"], "dates" : ["DATA_ACTUAL_DATE","DATA_ACTUAL_END_DATE"]}
     )
 
     md_currency_d = PythonOperator(
         task_id="md_currency_d",
         python_callable=insert_data1,
-        op_kwargs={"table_name": "md_currency_d","index_name" : ["CURRENCY_RK", "DATA_ACTUAL_DATE"], "dates" : ["DATA_ACTUAL_DATE","DATA_ACTUAL_END_DATE"]}
+        op_kwargs={"table_name": "md_currency_d","pk_name" : ["CURRENCY_RK", "DATA_ACTUAL_DATE"], "dates" : ["DATA_ACTUAL_DATE","DATA_ACTUAL_END_DATE"]}
     )
 
     md_exchange_rate_d = PythonOperator(
         task_id="md_exchange_rate_d",
         python_callable=insert_data,
-        op_kwargs={"table_name": "md_exchange_rate_d","index_name" : ["DATA_ACTUAL_DATE", "CURRENCY_RK"], "dates" : ["DATA_ACTUAL_DATE","DATA_ACTUAL_END_DATE"]}
+        op_kwargs={"table_name": "md_exchange_rate_d","pk_name" : ["DATA_ACTUAL_DATE", "CURRENCY_RK"], "dates" : ["DATA_ACTUAL_DATE","DATA_ACTUAL_END_DATE"]}
     )
 
     md_ledger_account_s = PythonOperator(
         task_id="md_ledger_account_s",
         python_callable=insert_data,
-        op_kwargs={"table_name": "md_ledger_account_s","index_name" : ["LEDGER_ACCOUNT", "START_DATE"], "dates" : ["START_DATE","END_DATE"]}
+        op_kwargs={"table_name": "md_ledger_account_s","pk_name" : ["LEDGER_ACCOUNT", "START_DATE"], "dates" : ["START_DATE","END_DATE"]}
     )
 
 

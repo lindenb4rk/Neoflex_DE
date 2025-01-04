@@ -19,13 +19,14 @@ import pandas
 from datetime import datetime
 
 # функция используется только для ft_postings_f.cvs тк там нет индекса + "replace" в методе to_sql, пересоздаёт таблицу
-# use in posting
 def insert_data2(table_name,dates):
     df = pandas.read_csv(PATH + f"{table_name}.csv",delimiter=";",parse_dates = dates)
  #   df = pandas.read_csv(f"/files/{table_name}.csv", delimiter=";")
     postgres_hook = PostgresHook("postgres-db")
     engine = postgres_hook.get_sqlalchemy_engine()
-    df.to_sql(table_name,engine,schema="ds",if_exists="replace",index=False)
+# отчищаем таблицу, как сказано в задании
+    postgres_hook.get_records(sql="DELETE FROM DS.FT_POSTING_F")
+    df.to_sql(table_name,engine,schema="ds",if_exists="append",index=False)
     sleep(5)
 
 # ещё одна функция нужна для таблицы md_currency_d, тк там с данными есть ошибка кодировки

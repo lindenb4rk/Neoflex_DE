@@ -2,3 +2,5 @@
 https://disk.yandex.ru/i/FE18gzNp3KykCQ
 Разбор кода вставки данных:
 https://disk.yandex.ru/i/PNRWH4Zf_SsDTQ
+Показ результатов работы дага,а именно: вставка новых значений и изменение старых.
+https://disk.yandex.ru/i/L1iN21-P1fMvsg
